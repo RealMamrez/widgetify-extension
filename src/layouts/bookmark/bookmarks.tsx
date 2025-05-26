@@ -1,9 +1,9 @@
 import { useBookmarkStore } from '@/context/bookmark.context'
 import { getTextColor, useTheme } from '@/context/theme.context'
-
 import Analytics from '@/analytics'
 import { callEvent } from '@/common/utils/call-event'
 import { SyncTarget } from '@/layouts/navbar/sync/sync'
+import { openBookmarkFolderInTabGroup } from '@/utils/tab-groups'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { BookmarkItem } from './components/bookmark-item'
 import { FolderPath } from './components/folder-path'
@@ -78,6 +78,7 @@ export function BookmarksComponent() {
 
 		return true
 	}
+
 	const handleMenuClick = (
 		e: React.MouseEvent<HTMLButtonElement>,
 		bookmark: Bookmark,
@@ -92,13 +93,13 @@ export function BookmarksComponent() {
 			}
 		}
 	}
-
 	const handleEditBookmark = (bookmark: Bookmark) => {
 		setBookmarkToEdit(bookmark)
 		setShowEditBookmarkModal(true)
 		setSelectedBookmark(null)
 	}
-	const handleBookmarkClick = (bookmark: Bookmark, e?: React.MouseEvent<any>) => {
+
+	const handleBookmarkClick = async (bookmark: Bookmark, e?: React.MouseEvent<any>) => {
 		if (e) {
 			e.preventDefault()
 		}
@@ -106,7 +107,7 @@ export function BookmarksComponent() {
 
 		if (e?.button === 1) {
 			if (bookmark.type === 'FOLDER') {
-				openBookmarks(bookmark)
+				await openBookmarks(bookmark)
 			} else {
 				window.open(bookmark.url)
 			}
@@ -115,7 +116,7 @@ export function BookmarksComponent() {
 
 		if (bookmark.type === 'FOLDER') {
 			if (e?.ctrlKey || e?.metaKey) {
-				openBookmarks(bookmark)
+				await openBookmarks(bookmark)
 			} else {
 				setCurrentFolderId(bookmark.id)
 				setFolderPath([...folderPath, { id: bookmark.id, title: bookmark.title }])
@@ -228,17 +229,21 @@ export function BookmarksComponent() {
 		}
 	}
 
-	function openBookmarks(bookmark: Bookmark) {
+	async function openBookmarks(bookmark: Bookmark) {
 		const children = getCurrentFolderItems(bookmark.id)
-		const bookmarks = children.filter((b) => b.type === 'BOOKMARK')
-		for (const b of bookmarks) {
-			window.open(b.url)
+		const bookmarkUrls = children.filter((b) => b.type === 'BOOKMARK')
+
+		if (bookmarkUrls.length > 0) {
+			await openBookmarkFolderInTabGroup(
+				bookmarkUrls.map((b) => ({ url: b.url, title: b.title })),
+				bookmark.title,
+			)
 		}
 	}
 
 	async function onOpenInNewTab(bookmark: Bookmark) {
 		if (bookmark?.type === 'FOLDER') {
-			openBookmarks(bookmark)
+			await openBookmarks(bookmark)
 		}
 
 		if (bookmark && bookmark.type === 'BOOKMARK') {
